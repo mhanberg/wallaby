@@ -77,6 +77,7 @@ defmodule Wallaby.Feature do
   def put_create_session_fn(opts, func), do: Keyword.put(opts, :create_session_fn, func)
 
   if @includes_ecto do
+    IO.inspect "DEFINING ECTO RELATED FUNCTIONS"
     @doc false
     def otp_app(), do: Application.get_env(:wallaby, :otp_app)
     @doc false
@@ -103,6 +104,7 @@ defmodule Wallaby.Feature do
   @doc false
   defmacro configure_ecto(async?) do
     if @includes_ecto do
+      IO.inspect("CONFIGURED ECTO")
       quote do
         otp_app()
         |> IO.inspect(label: "OTP app")
@@ -114,8 +116,9 @@ defmodule Wallaby.Feature do
         |> IO.inspect(label: "Metadata for repos")
       end
     else
+      IO.inspect("ECTO ___NOT___ CONFIGURED")
       quote do
-        ""
+        "" |> IO.inspect(label: "EMPTY STRING CUZ ITS NOT CONFIGURED")
       end
     end
   end
