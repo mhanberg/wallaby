@@ -15,9 +15,6 @@ defmodule Wallaby.Feature do
   ```
   """
 
-  @includes_ecto Code.ensure_loaded?(Ecto.Adapters.SQL.Sandbox) &&
-                   Code.ensure_loaded?(Phoenix.Ecto.SQL.Sandbox)
-
   defmacro __using__(_) do
     quote do
       ExUnit.Case.register_attribute(__MODULE__, :sessions)
@@ -76,47 +73,46 @@ defmodule Wallaby.Feature do
   def put_create_session_fn(opts, nil), do: opts
   def put_create_session_fn(opts, func), do: Keyword.put(opts, :create_session_fn, func)
 
-  if @includes_ecto do
-    IO.inspect "DEFINING ECTO RELATED FUNCTIONS"
-    @doc false
-    def otp_app(), do: Application.get_env(:wallaby, :otp_app)
-    @doc false
-    def ecto_repos(nil), do: []
-    def ecto_repos(otp_app), do: Application.get_env(otp_app, :ecto_repos, [])
-
-    @doc false
-    def checkout_ecto_repos(repo, async) do
-      :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo)
-
-    unless async, do: Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()}) |> IO.inspect(label: "Setting repo mode")
-
-      repo
-    end
-
-    @doc false
-    def metadata_for_ecto_repos([]), do: Map.new()
-
-    def metadata_for_ecto_repos(repos) do
-      Phoenix.Ecto.SQL.Sandbox.metadata_for(repos, self())
-    end
-  end
-
   @doc false
   defmacro configure_ecto(async?) do
-    if @includes_ecto do
+    includes_ecto =
+      Code.ensure_loaded?(Ecto.Adapters.SQL.Sandbox) &&
+        Code.ensure_loaded?(Phoenix.Ecto.SQL.Sandbox)
+
+    if includes_ecto do
+      IO.inspect("DEFINING ECTO RELATED FUNCTIONS")
+
       IO.inspect("CONFIGURED ECTO")
+
       quote do
-        otp_app()
+        :wallaby
+        |> Application.get_env(:otp_app)
         |> IO.inspect(label: "OTP app")
-        |> ecto_repos()
+        |> case do
+          nil -> []
+          otp_app -> Application.get_env(otp_app, :ecto_repos, [])
+        end
         |> IO.inspect(label: "Ecto Repos")
-        |> Enum.map(&checkout_ecto_repos(&1, unquote(async?)))
+        |> Enum.map(fn repo ->
+          :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo)
+
+          unless unquote(async?),
+            do:
+              Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+              |> IO.inspect(label: "Setting repo mode")
+
+          repo
+        end)
         |> IO.inspect(label: "Checked out Repos")
-        |> metadata_for_ecto_repos()
+        |> case do
+          [] -> Map.new()
+          repos -> Phoenix.Ecto.SQL.Sandbox.metadata_for(repos, self())
+        end
         |> IO.inspect(label: "Metadata for repos")
       end
     else
       IO.inspect("ECTO ___NOT___ CONFIGURED")
+
       quote do
         "" |> IO.inspect(label: "EMPTY STRING CUZ ITS NOT CONFIGURED")
       end
