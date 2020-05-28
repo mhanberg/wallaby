@@ -87,7 +87,7 @@ defmodule Wallaby.Feature do
     def checkout_ecto_repos(repo, async) do
       :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo)
 
-      unless async, do: Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()})
+    unless async, do: Ecto.Adapters.SQL.Sandbox.mode(repo, {:shared, self()}) |> IO.inspect(label: "Setting repo mode")
 
       repo
     end
@@ -105,9 +105,13 @@ defmodule Wallaby.Feature do
     if @includes_ecto do
       quote do
         otp_app()
+        |> IO.inspect(label: "OTP app")
         |> ecto_repos()
+        |> IO.inspect(label: "Ecto Repos")
         |> Enum.map(&checkout_ecto_repos(&1, unquote(async?)))
+        |> IO.inspect(label: "Checked out Repos")
         |> metadata_for_ecto_repos()
+        |> IO.inspect(label: "Metadata for repos")
       end
     else
       quote do
